@@ -13,7 +13,9 @@
 #include <SDL.h>
 #include <SDL_ttf.h>
 
+#ifdef NXDK
 #include "networking.h"
+#endif
 
 int init_systems() {
 #ifdef NXDK
