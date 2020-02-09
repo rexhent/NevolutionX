@@ -18,7 +18,7 @@
 #endif
 
 void goToMainMenu(menuItem *mI, Renderer *r, Font &f,
-                  int &listSize, int &currItem, int &prevItem, int &mMS) {
+                  size_t &listSize, size_t &currItem, size_t &prevItem, int &mMS) {
   f.setPassive(mI, r);
   listSize = 5;
   currItem = 0;
@@ -32,7 +32,7 @@ int main(void) {
   std::vector<menuItem> mainMenu;
   std::vector<xbeMenuItem> gamesList;
   std::vector<xbeMenuItem> appsList;
-  if (init == 0) {
+  if (init <= 1) {
     bool running = true;
 
     // Open our GameController
@@ -62,8 +62,10 @@ int main(void) {
     thrd_create(&thrA, findXBE, &xfaA);
 
     // Start FTP server
-    thrd_t thrF;
-    thrd_create(&thrF, ftpServer, NULL);
+    if (init == 0) {
+      thrd_t thrF;
+      thrd_create(&thrF, ftpServer, NULL);
+    }
 
     // Create render system
     Renderer r;
@@ -91,7 +93,7 @@ int main(void) {
     r.drawBackground();
     r.drawMenuTexture(menuListTexture);
     r.flip();
-    int currItem = 0, prevItem = 0, listSize = mainMenu.size();
+    size_t currItem = 0, prevItem = 0, listSize = mainMenu.size();
 
     SDL_Event event;
 
