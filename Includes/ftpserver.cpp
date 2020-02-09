@@ -22,6 +22,7 @@
 #include <pktdrv.h>
 #include <windows.h> // Used for file I/O
 #include <nxdk/mount.h>
+#include <xboxkrnl/xboxkrnl.h>
 #else
 #include <stdio.h>
 #include <stdlib.h>
@@ -75,10 +76,25 @@ void sendStdString(int fd, std::string s, int flags = 0)
   send(fd, s.c_str(), s.length(), flags);
 }
 
+std::string unixToDosPath(std::string const& path) {
+  std::string ret;
+  if (path[0] == '/' && path[1] == '/') {
+    ret = path.substr(1, std::string::npos);
+  } else {
+    ret = path;
+  }
+  ret = ret.substr(1,1) + ":" + path.substr(2, std::string::npos);
+  std::replace(ret.begin(), ret.end(), '/', '\\');
+  return ret;
+}
+
 const std::string drives = "CDEFGXYZ";
 
 void sendFolderContents(int fd, std::string &path) {
-  if (!path.compare("/") || !path.compare("//")) {
+  if (path[0] == '/' && path[1] == '/') {
+    path = path.substr(1, std::string::npos);
+  }
+  if (!path.compare("/")) {
     for (size_t i = 0; i < drives.length(); ++i) {
       if (nxIsDriveMounted(drives[i])) {
         sendStdString(fd, "drwxr-xr-x 1 XBOX XBOX 0 May 11 10:41 " +
@@ -89,9 +105,7 @@ void sendFolderContents(int fd, std::string &path) {
   }
 #ifdef NXDK
   WIN32_FIND_DATAA fData;
-  std::string searchmask = path.substr(1,1) + ":" + path.substr(2, std::string::npos) + "*";
-  std::replace(searchmask.begin(), searchmask.end(), '/', '\\');
-  outputLine(searchmask.c_str());
+  std::string searchmask = unixToDosPath(path + "*");
   HANDLE fHandle = FindFirstFileA(searchmask.c_str(), &fData);
   if (fHandle == INVALID_HANDLE_VALUE) {
     return;
@@ -104,8 +118,7 @@ void sendFolderContents(int fd, std::string &path) {
       retstr = "-";
     }
     retstr += "rwxr-xr-x 1 XBOX XBOX " + std::to_string(fData.nFileSizeLow) +
-      " May 11 10:41 " + fData.cFileName + "\r\n";
-    outputLine(retstr.c_str());
+      " May 11 14:40 " + fData.cFileName + "\r\n";
     sendStdString(fd, retstr);
   } while (FindNextFile(fHandle, &fData) != 0);
   FindClose(fHandle);
@@ -116,6 +129,25 @@ void sendFolderContents(int fd, std::string &path) {
     sendStdString(fd, retstr);
   }
 #endif
+}
+
+bool sendFile(int fd, std::string const& pwd, std::string const& fileName) {
+  std::string filePath = unixToDosPath(pwd + fileName);
+  outputLine(fileName.c_str());
+  WIN32_FIND_DATAA fData;
+  HANDLE fHandle = FindFirstFileA(filePath.c_str(), &fData);
+  outputLine(("\r\n" + filePath + "\r\n").c_str());
+  if (fHandle == INVALID_HANDLE_VALUE) {
+    return false;
+  }
+  int bytesToRead = 1533;
+  unsigned long bytesRead;
+  char buf[1536];
+
+  while (ReadFile(fHandle, &buf, bytesToRead, &bytesRead, NULL)) {
+    send(fd, buf, bytesRead, 0);
+  }
+  return true;
 }
 
 int ftpServer(void*)
@@ -212,7 +244,7 @@ int ftpServer(void*)
             if (newfd > fdmax) {    // keep track of the max
               fdmax = newfd;
             }
-            send(newfd, replies[0].c_str(), replies[0].length(), 0);
+            sendStdString(newfd, replies[0]);
             PWDs[newfd] = "/";
           }
         } else {
@@ -221,7 +253,7 @@ int ftpServer(void*)
             // got error or connection closed by client
             if (nbytes == 0) {
               // connection closed
-              outputLine("selectserver: socket %d hung up\n", i);
+              // outputLine("selectserver: socket %d hung up\n", i);
             } else {
               outputLine("Error: recv\n");
             }
@@ -237,7 +269,7 @@ int ftpServer(void*)
              *   ABOR - abort a file transfer
              * / CWD  - change working directory (Lacks sanity check)
              *   DELE - delete a remote file
-             * / LIST - list remote files
+             * X LIST - list remote files
              *   MDTM - return the modification time of a file
              *   MKD  - make a remote directory
              *   NLST - name list of remote directory
@@ -275,9 +307,14 @@ int ftpServer(void*)
               send(i, buf, strlen(buf), 0);
               // sendStdString(i, 
             } else if (!cmd.compare("TYPE")) {
-              if(recvdata[5] == 'I') {
+              if (recvdata[5] == 'I') {
                 sprintf(buf, replies[5].c_str(), "IMAGE");
                 send(i, buf, strlen(buf), 0);
+              } else if (recvdata[5] == 'A') {
+                sprintf(buf, replies[5].c_str(), "ASCII");
+                send(i, buf, strlen(buf), 0);
+              } else {
+                sendStdString(i, "504 Command parameter not implemented.\r\n");
               }
             } else if (!cmd.compare("CWD")) {
               if (recvdata[4] == '.' && recvdata[5] == '.') {
@@ -293,25 +330,20 @@ int ftpServer(void*)
               sendStdString(i, replies[7]); 
             } else if (!cmd.compare("PORT")) {
               int valueSep = recvdata.find(',', cmdDataSep);
-              ++cmdDataSep;
-              std::string a1 = recvdata.substr(cmdDataSep, valueSep-cmdDataSep);
-              cmdDataSep = valueSep+1;
-              valueSep = recvdata.find(',', cmdDataSep);
-              std::string a2 = recvdata.substr(cmdDataSep, valueSep-cmdDataSep);
-              cmdDataSep = valueSep+1;
-              valueSep = recvdata.find(',', cmdDataSep);
-              std::string a3 = recvdata.substr(cmdDataSep, valueSep-cmdDataSep);
-              cmdDataSep = valueSep+1;
-              valueSep = recvdata.find(',', cmdDataSep);
-              std::string a4 = recvdata.substr(cmdDataSep, valueSep-cmdDataSep);
+              valueSep = recvdata.find(',', valueSep+1);
+              valueSep = recvdata.find(',', valueSep+1);
+              valueSep = recvdata.find(',', valueSep+1);
+              std::string address = recvdata.substr(cmdDataSep+1, valueSep - (cmdDataSep+1));
+              std::replace(address.begin(), address.end(), ',', '.');
+
               cmdDataSep = valueSep+1;
               valueSep = recvdata.find(',', cmdDataSep);
               std::string p1 = recvdata.substr(cmdDataSep, valueSep-cmdDataSep);
               cmdDataSep = valueSep+1;
-              valueSep = recvdata.find(',', cmdDataSep);
-              std::string p2 = recvdata.substr(cmdDataSep, valueSep-cmdDataSep);
-              std::string address = a1 + "." + a2 + "." + a3 + "." + a4;
+              std::string p2 = recvdata.substr(cmdDataSep, std::string::npos);
+
               std::string port = std::to_string(stoi(p1)*256 + stoi(p2));
+              outputLine((address + " " + port + "\n").c_str());
               if (getaddrinfo(address.c_str(), port.c_str(), &hints, &TXs[i]) == 0)
               {
                 if ((TXFDs[i] = socket(TXs[i]->ai_family, TXs[i]->ai_socktype, TXs[i]->ai_protocol))
@@ -369,6 +401,15 @@ int ftpServer(void*)
                 }
               } else {
                 outputLine("Getting address info failed!\n");
+              }
+            } else if (!cmd.compare("RETR")) {
+              if (TXFDs[i] != -1) {
+                std::string fileName = recvdata.substr(cmdDataSep + 1, std::string::npos);
+                sendStdString(i, "150 Sending file " + fileName + "\r\n");
+                sendFile(TXFDs[i], PWDs[i], fileName);
+                close(TXFDs[i]);
+                freeaddrinfo(TXs[i]);
+                sendStdString(i, replies[10]);
               }
             } else if (!cmd.compare("PWD\r")) {
             } else {
