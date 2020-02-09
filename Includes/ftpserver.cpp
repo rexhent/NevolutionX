@@ -1,6 +1,7 @@
 #include <iostream>
 #include <iomanip>
 #include <string>
+#include <algorithm>
 #include <map>
 #include "outputLine.h"
 #include "ftpserver.h"
@@ -19,6 +20,8 @@
 #include <lwip/timeouts.h>
 #include <netif/etharp.h>
 #include <pktdrv.h>
+#include <windows.h> // Used for file I/O
+#include <nxdk/mount.h>
 #else
 #include <stdio.h>
 #include <stdlib.h>
@@ -29,6 +32,8 @@
 #include <netinet/in.h>
 #include <arpa/inet.h>
 #include <netdb.h>
+
+bool nxIsDriveMounted(char) { return true; }
 #endif
 
 const std::string username = "xbox";
@@ -68,6 +73,49 @@ void *getInAddr(struct sockaddr *sa)
 void sendStdString(int fd, std::string s, int flags = 0)
 {
   send(fd, s.c_str(), s.length(), flags);
+}
+
+const std::string drives = "CDEFGXYZ";
+
+void sendFolderContents(int fd, std::string &path) {
+  if (!path.compare("/") || !path.compare("//")) {
+    for (size_t i = 0; i < drives.length(); ++i) {
+      if (nxIsDriveMounted(drives[i])) {
+        sendStdString(fd, "drwxr-xr-x 1 XBOX XBOX 0 May 11 10:41 " +
+                      drives.substr(i,1) + "\r\n");
+      }
+    }
+    return;
+  }
+#ifdef NXDK
+  WIN32_FIND_DATAA fData;
+  std::string searchmask = path.substr(1,1) + ":" + path.substr(2, std::string::npos) + "*";
+  std::replace(searchmask.begin(), searchmask.end(), '/', '\\');
+  outputLine(searchmask.c_str());
+  HANDLE fHandle = FindFirstFileA(searchmask.c_str(), &fData);
+  if (fHandle == INVALID_HANDLE_VALUE) {
+    return;
+  }
+  do {
+    std::string retstr = "";
+    if (fData.dwFileAttributes & FILE_ATTRIBUTE_DIRECTORY) {
+      retstr = "d";
+    } else {
+      retstr = "-";
+    }
+    retstr += "rwxr-xr-x 1 XBOX XBOX " + std::to_string(fData.nFileSizeLow) +
+      " May 11 10:41 " + fData.cFileName + "\r\n";
+    outputLine(retstr.c_str());
+    sendStdString(fd, retstr);
+  } while (FindNextFile(fHandle, &fData) != 0);
+  FindClose(fHandle);
+#else
+  for (int q = 0; q < 10; ++q) {
+    std::string retstr = "drwxr-xr-x 1 XBOX XBOX " + std::to_string(q) +
+      " May 11 10:41 " + std::to_string(q) + "\r\n";
+    sendStdString(fd, retstr);
+  }
+#endif
 }
 
 int ftpServer(void*)
@@ -196,6 +244,7 @@ int ftpServer(void*)
              * X PASS - send password
              *   PASV - enter passive mode
              * X PORT - open a data port
+             * X EPRT - Extended data port (IPv6)
              * X PWD  - print working directory
              *   QUIT - terminate the connection
              *   RETR - retrieve a remote file
@@ -284,22 +333,19 @@ int ftpServer(void*)
               if (TXFDs[i] != -1) {
                 sendStdString(i, replies[9]);
                 /*****************************************************
-                 * List and send files (FIXME!)
-                 * Due to a lack of winapi understanding, this remains
-                 * unimplemented. No idea when I'll find time to learn
-                 * this odd API.
+                 * List and send files
                  *****************************************************/
-                for (int q = 0; q < 1; ++q)
-                {
-                  sendStdString(TXFDs[i], "drwxr-xr-x 1 XBOX XBOX 0 May 11 10:41 Z\r\n");
-                  sendStdString(TXFDs[i], "-rw-r--r-- 1 XBOX XBOX 77 Oct 16 22:06 JP\r\n");
-                }
+                sendFolderContents(TXFDs[i], PWDs[i]);
                 close(TXFDs[i]);
                 freeaddrinfo(TXs[i]);
                 sendStdString(i, replies[10]);
               }
             } else if (!cmd.compare("EPRT")) {
               int family = std::stoi(recvdata.substr(6,1));
+              if (family != 1 && family != 2) {
+                sendStdString(i, "502 Unknown address family; use (1,2)\r\n");
+                continue;
+              }
               char delimiter = recvdata[5];
               int portDelimiter = recvdata.find(delimiter,8);
               std::string address = recvdata.substr(8,recvdata.find(delimiter, portDelimiter)-8);
