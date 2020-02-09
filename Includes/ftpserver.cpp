@@ -300,13 +300,13 @@ int ftpServer(void*)
               }
             } else if (!cmd.compare("EPRT")) {
               int family = std::stoi(recvdata.substr(6,1));
-              int portDelimiter = recvdata.find('|',8);
-              std::string address = recvdata.substr(8,recvdata.find('|', portDelimiter)-8);
+              char delimiter = recvdata[5];
+              int portDelimiter = recvdata.find(delimiter,8);
+              std::string address = recvdata.substr(8,recvdata.find(delimiter, portDelimiter)-8);
               ++portDelimiter;
               std::string port = recvdata.substr(portDelimiter,
-                                                 recvdata.find('|', portDelimiter) -
+                                                 recvdata.find(delimiter, portDelimiter) -
                                                  portDelimiter);
-              std::cout << family << " " << address << " " << port << std::endl;
               if (getaddrinfo(address.c_str(), port.c_str(), &hints, &TXs[i]) == 0)
               {
                 if ((TXFDs[i] = socket(TXs[i]->ai_family, TXs[i]->ai_socktype, TXs[i]->ai_protocol))
