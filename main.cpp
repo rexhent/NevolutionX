@@ -7,6 +7,8 @@
 #include "renderer.h"
 #include "subsystems.h"
 
+#include "ftpserver.h"
+
 #include <type_traits>
 #include <threads.h>
 #include <SDL.h>
@@ -58,6 +60,10 @@ int main(void) {
     thrd_t thrA;
     int thread_statusA = 1;
     thrd_create(&thrA, findXBE, &xfaA);
+
+    // Start FTP server
+    thrd_t thrF;
+    thrd_create(&thrF, ftpServer, NULL);
 
     // Create render system
     Renderer r;
