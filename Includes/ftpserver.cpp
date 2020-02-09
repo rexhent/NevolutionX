@@ -261,9 +261,9 @@ int ftpServer(void*)
               cmdDataSep = valueSep+1;
               valueSep = recvdata.find(',', cmdDataSep);
               std::string p2 = recvdata.substr(cmdDataSep, valueSep-cmdDataSep);
-              std::string addr = a1 + "." + a2 + "." + a3 + "." + a4;
+              std::string address = a1 + "." + a2 + "." + a3 + "." + a4;
               std::string port = std::to_string(stoi(p1)*256 + stoi(p2));
-              if (getaddrinfo(addr.c_str(), port.c_str(), &hints, &TXs[i]) == 0)
+              if (getaddrinfo(address.c_str(), port.c_str(), &hints, &TXs[i]) == 0)
               {
                 if ((TXFDs[i] = socket(TXs[i]->ai_family, TXs[i]->ai_socktype, TXs[i]->ai_protocol))
                     != -1)
@@ -298,7 +298,32 @@ int ftpServer(void*)
                 freeaddrinfo(TXs[i]);
                 sendStdString(i, replies[10]);
               }
-            } else if (!cmd.compare("PWD\r")) {
+            } else if (!cmd.compare("EPRT")) {
+              int family = std::stoi(recvdata.substr(6,1));
+              int portDelimiter = recvdata.find('|',8);
+              std::string address = recvdata.substr(8,recvdata.find('|', portDelimiter)-8);
+              ++portDelimiter;
+              std::string port = recvdata.substr(portDelimiter,
+                                                 recvdata.find('|', portDelimiter) -
+                                                 portDelimiter);
+              std::cout << family << " " << address << " " << port << std::endl;
+              if (getaddrinfo(address.c_str(), port.c_str(), &hints, &TXs[i]) == 0)
+              {
+                if ((TXFDs[i] = socket(TXs[i]->ai_family, TXs[i]->ai_socktype, TXs[i]->ai_protocol))
+                    != -1)
+                {
+                  if (connect(TXFDs[i], TXs[i]->ai_addr, TXs[i]->ai_addrlen) == 0)
+                  {
+                    sendStdString(i, replies[8]);
+                  } else {
+                    outputLine("Connecting socket %d failed!\n", TXFDs[i]);
+                  }
+                } else {
+                  outputLine("Socket creation failed!\n");
+                }
+              } else {
+                outputLine("Getting address info failed!\n");
+              }
             } else if (!cmd.compare("PWD\r")) {
             } else {
               sprintf(buf, replies[4].c_str(), cmd.c_str());
