@@ -88,8 +88,6 @@ int ftpServer(void*)
   char buf[1024];
   int nbytes;
 
-  char remoteIP[INET6_ADDRSTRLEN];
-
   int yes = 1;
   int i;
 
@@ -103,7 +101,11 @@ int ftpServer(void*)
   hints.ai_family = AF_UNSPEC;
   hints.ai_socktype = SOCK_STREAM;
   hints.ai_flags = AI_PASSIVE;
+#ifdef NXDK
+  if ((i = getaddrinfo(NULL, "21", &hints, &ai)) != 0) {
+#else
   if ((i = getaddrinfo(NULL, "1089", &hints, &ai)) != 0) {
+#endif
     outputLine("Error: selectserver\n");
     return 5;
   }
@@ -162,12 +164,6 @@ int ftpServer(void*)
             if (newfd > fdmax) {    // keep track of the max
               fdmax = newfd;
             }
-            outputLine("selectserver: new connection from %s on "
-                       "socket %d\n",
-                       inet_ntop(raddr.ss_family,
-                                 getInAddr((struct sockaddr*)&raddr),
-                                 remoteIP, INET6_ADDRSTRLEN),
-                       newfd);
             send(newfd, replies[0].c_str(), replies[0].length(), 0);
             PWDs[newfd] = "/";
           }
@@ -217,7 +213,6 @@ int ftpServer(void*)
             recvdata = recvdata.substr(0, recvdata.find('\r'));
             size_t cmdDataSep = recvdata.find(' ', 0);
             std::string cmd = recvdata.substr(0, cmdDataSep);
-            outputLine(recvdata.c_str());
             if (!cmd.compare("USER")) {
               if (!recvdata.substr(5, recvdata.find('\r')-5).compare(username)) {
                 sendStdString(i, replies[1]);
@@ -276,8 +271,14 @@ int ftpServer(void*)
                   if (connect(TXFDs[i], TXs[i]->ai_addr, TXs[i]->ai_addrlen) == 0)
                   {
                     sendStdString(i, replies[8]);
+                  } else {
+                    outputLine("Connecting socket %d failed!\n", TXFDs[i]);
                   }
+                } else {
+                  outputLine("Socket creation failed!\n");
                 }
+              } else {
+                outputLine("Getting address info failed!\n");
               }
             } else if (!cmd.compare("LIST")) {
               if (TXFDs[i] != -1) {
@@ -290,10 +291,11 @@ int ftpServer(void*)
                  *****************************************************/
                 for (int q = 0; q < 1; ++q)
                 {
-                  sprintf(buf, "drwxr-xr-x   1 XBOX      XBOX        0 May 11 10:41 Z");
-                  send(TXFDs[i], buf, strlen(buf), 0);
+                  sendStdString(TXFDs[i], "drwxr-xr-x 1 XBOX XBOX 0 May 11 10:41 Z\r\n");
+                  sendStdString(TXFDs[i], "-rw-r--r-- 1 XBOX XBOX 77 Oct 16 22:06 JP\r\n");
                 }
                 close(TXFDs[i]);
+                freeaddrinfo(TXs[i]);
                 sendStdString(i, replies[10]);
               }
             } else if (!cmd.compare("PWD\r")) {
