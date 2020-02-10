@@ -76,6 +76,47 @@ void sendStdString(int fd, std::string s, int flags = 0)
   send(fd, s.c_str(), s.length(), flags);
 }
 
+#ifdef NXDK
+std::string gai_strerror(int errc) {
+  switch (errc) {
+  case -1:
+    return "ERR_MEM";
+  case -2:
+    return "ERR_BUF";
+  case -3:
+    return "ERR_TIMEOUT";
+  case -4:
+    return "ERR_RTE";
+  case -5:
+    return "ERR_INPROGRESS";
+  case -6:
+    return "ERR_VAL";
+  case -7:
+    return "ERR_WOULDBLOCK";
+  case -8:
+    return "ERR_USE";
+  case -9:
+    return "ERR_ALREADY";
+  case -10:
+    return "ERR_ISCONN";
+  case -11:
+    return "ERR_CONN";
+  case -12:
+    return "ERR_IF";
+  case -13:
+    return "ERR_ABRT";
+  case -14:
+    return "ERR_RST";
+  case -15:
+    return "ERR_CLSD";
+  case -16:
+    return "ERR_ARG";
+  default:
+    return "ERR_OK";
+  }
+}
+#endif
+
 std::string unixToDosPath(std::string const& path) {
   std::string ret;
   if (path[0] == '/' && path[1] == '/') {
@@ -170,6 +211,7 @@ int ftpServer(void*)
 
   int yes = 1;
   int i;
+  int rv;
 
   struct addrinfo hints, *ai, *p;
 
@@ -344,7 +386,7 @@ int ftpServer(void*)
 
               std::string port = std::to_string(stoi(p1)*256 + stoi(p2));
               outputLine((address + " " + port + "\n").c_str());
-              if (getaddrinfo(address.c_str(), port.c_str(), &hints, &TXs[i]) == 0)
+              if ((rv = getaddrinfo(address.c_str(), port.c_str(), &hints, &TXs[i])) == 0)
               {
                 if ((TXFDs[i] = socket(TXs[i]->ai_family, TXs[i]->ai_socktype, TXs[i]->ai_protocol))
                     != -1)
@@ -359,7 +401,7 @@ int ftpServer(void*)
                   outputLine("Socket creation failed!\n");
                 }
               } else {
-                outputLine("Getting address info failed!\n");
+                outputLine(("Getting address info failed: " + gai_strerror(rv) + "\n").c_str());
               }
             } else if (!cmd.compare("LIST")) {
               if (TXFDs[i] != -1) {
