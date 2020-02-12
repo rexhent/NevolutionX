@@ -10,6 +10,7 @@
 #include <lwip/opt.h>
 #include <lwip/arch.h>
 #include <lwip/netdb.h>
+#include <lwip/errno.h>
 #include <lwip/sockets.h>
 #include <lwip/debug.h>
 #include <lwip/dhcp.h>
@@ -79,43 +80,52 @@ void sendStdString(int fd, std::string s, int flags = 0)
 #ifdef NXDK
 std::string gai_strerror(int errc) {
   switch (errc) {
-  case -1:
-    return "ERR_MEM";
-  case -2:
-    return "ERR_BUF";
-  case -3:
-    return "ERR_TIMEOUT";
-  case -4:
-    return "ERR_RTE";
-  case -5:
-    return "ERR_INPROGRESS";
-  case -6:
-    return "ERR_VAL";
-  case -7:
-    return "ERR_WOULDBLOCK";
-  case -8:
-    return "ERR_USE";
-  case -9:
-    return "ERR_ALREADY";
-  case -10:
-    return "ERR_ISCONN";
-  case -11:
-    return "ERR_CONN";
-  case -12:
-    return "ERR_IF";
-  case -13:
-    return "ERR_ABRT";
-  case -14:
-    return "ERR_RST";
-  case -15:
-    return "ERR_CLSD";
-  case -16:
-    return "ERR_ARG";
+  case 200:
+    return "EAI_NONAME";
+  case 201:
+    return "EAI_SERVICE";
+  case 202:
+    return "EAI_FAIL";
+  case 203:
+    return "EAI_MEMORY";
+  case 204:
+    return "EAI_FAMILY";
+  case 210:
+    return "HOST_NOT_FOUND";
+  case 211:
+    return "NO_DATA";
+  case 212:
+    return "NO_RECOVERY";
+  case 213:
+    return "TRY_AGAIN";
   default:
     return "ERR_OK";
   }
 }
 #endif
+
+std::string sock_strerror(int errc) {
+  switch (errc) {
+  case EACCES:
+    return "EACCES";
+  case EAFNOSUPPORT:
+    return "EAFNOSUPPORT";
+  case EINVAL:
+    return "EINVAL";
+  case ENFILE:
+    return "ENFILE";
+  case EMFILE:
+    return "EMFILE";
+  case ENOBUFS:
+    return "ENOBUFS";
+  case ENOMEM:
+    return "ENOMEM";
+  case EPROTONOSUPPORT:
+    return "EPROTONOSUPPORT";
+  default:
+    return "ERR_OK";
+  }
+}
 
 std::string unixToDosPath(std::string const& path) {
   std::string ret;
@@ -352,9 +362,6 @@ int ftpServer(void*)
               if (recvdata[5] == 'I') {
                 sprintf(buf, replies[5].c_str(), "IMAGE");
                 send(i, buf, strlen(buf), 0);
-              } else if (recvdata[5] == 'A') {
-                sprintf(buf, replies[5].c_str(), "ASCII");
-                send(i, buf, strlen(buf), 0);
               } else {
                 sendStdString(i, "504 Command parameter not implemented.\r\n");
               }
@@ -398,10 +405,13 @@ int ftpServer(void*)
                     outputLine("Connecting socket %d failed!\n", TXFDs[i]);
                   }
                 } else {
-                  outputLine("Socket creation failed!\n");
+                  outputLine(("Socket creation failed!" + std::to_string(errno) + "\n").c_str());
+                  sendStdString(i, "425 Can't open data connection");
+                  freeaddrinfo(TXs[i]);
                 }
               } else {
                 outputLine(("Getting address info failed: " + gai_strerror(rv) + "\n").c_str());
+                sendStdString(i, "425 Getting address info failed.");
               }
             } else if (!cmd.compare("LIST")) {
               if (TXFDs[i] != -1) {
@@ -440,9 +450,12 @@ int ftpServer(void*)
                   }
                 } else {
                   outputLine("Socket creation failed!\n");
+                  sendStdString(i, "425 Can't open data connection");
+                  freeaddrinfo(TXs[i]);
                 }
               } else {
                 outputLine("Getting address info failed!\n");
+                sendStdString(i, "425 Getting address info failed.");
               }
             } else if (!cmd.compare("RETR")) {
               if (TXFDs[i] != -1) {
