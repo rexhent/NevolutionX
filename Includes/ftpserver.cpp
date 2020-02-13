@@ -290,7 +290,7 @@ int ftpServer(void*)
                          &addrlen);
 
           if (newfd == -1) {
-            outputLine("Error: accept\n");
+            outputLine("Error: accept: %s\n", sock_strerror(errno).c_str());
           } else {
             FD_SET(newfd, &master); // add to master set
             if (newfd > fdmax) {    // keep track of the max
@@ -305,7 +305,6 @@ int ftpServer(void*)
             // got error or connection closed by client
             if (nbytes == 0) {
               // connection closed
-              // outputLine("selectserver: socket %d hung up\n", i);
             } else {
               outputLine("Error: recv\n");
             }
@@ -331,7 +330,7 @@ int ftpServer(void*)
              * X EPRT - Extended data port (IPv6)
              * X PWD  - print working directory
              *   QUIT - terminate the connection
-             *   RETR - retrieve a remote file
+             * / RETR - retrieve a remote file (Crashes on PORT?!)
              *   RMD  - remove a remote directory
              *   RNFR - rename from
              *   RNTO - rename to
@@ -405,12 +404,12 @@ int ftpServer(void*)
                     outputLine("Connecting socket %d failed!\n", TXFDs[i]);
                   }
                 } else {
-                  outputLine(("Socket creation failed!" + std::to_string(errno) + "\n").c_str());
+                  outputLine("Socket creation failed! %s\n", sock_strerror(errno).c_str());
                   sendStdString(i, "425 Can't open data connection");
                   freeaddrinfo(TXs[i]);
                 }
               } else {
-                outputLine(("Getting address info failed: " + gai_strerror(rv) + "\n").c_str());
+                outputLine("Getting address info failed: %s\n", gai_strerror(rv).c_str());
                 sendStdString(i, "425 Getting address info failed.");
               }
             } else if (!cmd.compare("LIST")) {
@@ -437,7 +436,7 @@ int ftpServer(void*)
               std::string port = recvdata.substr(portDelimiter,
                                                  recvdata.find(delimiter, portDelimiter) -
                                                  portDelimiter);
-              if (getaddrinfo(address.c_str(), port.c_str(), &hints, &TXs[i]) == 0)
+              if ((rv = getaddrinfo(address.c_str(), port.c_str(), &hints, &TXs[i])) == 0)
               {
                 if ((TXFDs[i] = socket(TXs[i]->ai_family, TXs[i]->ai_socktype, TXs[i]->ai_protocol))
                     != -1)
@@ -446,20 +445,21 @@ int ftpServer(void*)
                   {
                     sendStdString(i, replies[8]);
                   } else {
-                    outputLine("Connecting socket %d failed!\n", TXFDs[i]);
+                    outputLine("Connecting socket %d failed; %s\n", TXFDs[i], sock_strerror(errno).c_str());
                   }
                 } else {
-                  outputLine("Socket creation failed!\n");
+                  outputLine("Socket creation failed; %s\n", sock_strerror(errno).c_str());
                   sendStdString(i, "425 Can't open data connection");
                   freeaddrinfo(TXs[i]);
                 }
               } else {
-                outputLine("Getting address info failed!\n");
+                outputLine("Getting address info failed; %s\n", gai_strerror(rv).c_str());
                 sendStdString(i, "425 Getting address info failed.");
               }
             } else if (!cmd.compare("RETR")) {
               if (TXFDs[i] != -1) {
                 std::string fileName = recvdata.substr(cmdDataSep + 1, std::string::npos);
+                outputLine("Trying to send file %s!\n", fileName.c_str());
                 sendStdString(i, "150 Sending file " + fileName + "\r\n");
                 sendFile(TXFDs[i], PWDs[i], fileName);
                 close(TXFDs[i]);
