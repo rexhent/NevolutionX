@@ -405,12 +405,12 @@ int ftpServer(void*)
                   }
                 } else {
                   outputLine("Socket creation failed! %s\n", sock_strerror(errno).c_str());
-                  sendStdString(i, "425 Can't open data connection");
+                  sendStdString(i, "425 Can't open data connection\r\n");
                   freeaddrinfo(TXs[i]);
                 }
               } else {
                 outputLine("Getting address info failed: %s\n", gai_strerror(rv).c_str());
-                sendStdString(i, "425 Getting address info failed.");
+                sendStdString(i, "425 Getting address info failed.\r\n");
               }
             } else if (!cmd.compare("LIST")) {
               if (TXFDs[i] != -1) {
@@ -449,12 +449,12 @@ int ftpServer(void*)
                   }
                 } else {
                   outputLine("Socket creation failed; %s\n", sock_strerror(errno).c_str());
-                  sendStdString(i, "425 Can't open data connection");
+                  sendStdString(i, "425 Can't open data connection\r\n");
                   freeaddrinfo(TXs[i]);
                 }
               } else {
                 outputLine("Getting address info failed; %s\n", gai_strerror(rv).c_str());
-                sendStdString(i, "425 Getting address info failed.");
+                sendStdString(i, "425 Getting address info failed.\r\n");
               }
             } else if (!cmd.compare("RETR")) {
               if (TXFDs[i] != -1) {
