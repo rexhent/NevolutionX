@@ -78,7 +78,7 @@ void sendStdString(int fd, std::string s, int flags = 0)
 }
 
 #ifdef NXDK
-std::string gai_strerror(int errc) {
+const char* gai_strerror(int errc) {
   switch (errc) {
   case 200:
     return "EAI_NONAME";
@@ -179,10 +179,13 @@ void sendFolderContents(int fd, std::string &path) {
       " May 11 10:41 " + std::to_string(q) + "\r\n";
     sendStdString(fd, retstr);
   }
+  std::string retstr = "-rwxr-xr-x 1 XBOX XBOX 1024 May 11 10:41 X\r\n";
+  sendStdString(fd, retstr);
 #endif
 }
 
 bool sendFile(int fd, std::string const& pwd, std::string const& fileName) {
+#ifdef NXDK
   std::string filePath = unixToDosPath(pwd + fileName);
   outputLine(fileName.c_str());
   WIN32_FIND_DATAA fData;
@@ -199,6 +202,12 @@ bool sendFile(int fd, std::string const& pwd, std::string const& fileName) {
     send(fd, buf, bytesRead, 0);
   }
   return true;
+#else
+  char buf[1024]; // Buffer of garbage
+  int bytesRead = 1024;
+  send(fd, buf, bytesRead, 0);
+  return true;
+#endif
 }
 
 int ftpServer(void*)
@@ -361,6 +370,9 @@ int ftpServer(void*)
               if (recvdata[5] == 'I') {
                 sprintf(buf, replies[5].c_str(), "IMAGE");
                 send(i, buf, strlen(buf), 0);
+              } else if (recvdata[5] == 'A') {
+                sprintf(buf, replies[5].c_str(), "ASCII");
+                send(i, buf, strlen(buf), 0);
               } else {
                 sendStdString(i, "504 Command parameter not implemented.\r\n");
               }
@@ -391,7 +403,7 @@ int ftpServer(void*)
               std::string p2 = recvdata.substr(cmdDataSep, std::string::npos);
 
               std::string port = std::to_string(stoi(p1)*256 + stoi(p2));
-              outputLine((address + " " + port + "\n").c_str());
+              outputLine((address + " " + port + " " + std::to_string(i) + "\n").c_str());
               if ((rv = getaddrinfo(address.c_str(), port.c_str(), &hints, &TXs[i])) == 0)
               {
                 if ((TXFDs[i] = socket(TXs[i]->ai_family, TXs[i]->ai_socktype, TXs[i]->ai_protocol))
@@ -409,7 +421,7 @@ int ftpServer(void*)
                   freeaddrinfo(TXs[i]);
                 }
               } else {
-                outputLine("Getting address info failed: %s\n", gai_strerror(rv).c_str());
+                outputLine("Getting address info failed: %s\n", gai_strerror(rv));
                 sendStdString(i, "425 Getting address info failed.\r\n");
               }
             } else if (!cmd.compare("LIST")) {
@@ -453,7 +465,7 @@ int ftpServer(void*)
                   freeaddrinfo(TXs[i]);
                 }
               } else {
-                outputLine("Getting address info failed; %s\n", gai_strerror(rv).c_str());
+                outputLine("Getting address info failed; %s\n", gai_strerror(rv));
                 sendStdString(i, "425 Getting address info failed.\r\n");
               }
             } else if (!cmd.compare("RETR")) {
