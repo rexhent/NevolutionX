@@ -201,11 +201,42 @@ bool sendFile(int fd, std::string const& pwd, std::string const& fileName) {
   while (ReadFile(fHandle, &buf, bytesToRead, &bytesRead, NULL)) {
     send(fd, buf, bytesRead, 0);
   }
+  FindClose(fHandle);
   return true;
 #else
   char buf[1024]; // Buffer of garbage
   int bytesRead = 1024;
   send(fd, buf, bytesRead, 0);
+  return true;
+#endif
+}
+
+bool recvFile(int fd, std::string const& pwd, std::string const& fileName) {
+#ifdef NXDK
+  std::string filePath = unixToDosPath(pwd + fileName);
+  outputLine(fileName.c_str());
+  HANDLE fHandle = CreateFile(filePath.c_str(), GENERIC_WRITE,
+                              FILE_SHARE_WRITE, 0, OPEN_EXISTING,
+                              FILE_ATTRIBUTE_NORMAL, 0);
+  outputLine(("\r\n" + filePath + "\r\n").c_str());
+  if (fHandle == INVALID_HANDLE_VALUE) {
+    return false;
+  }
+  int bytesToWrite = 1533;
+  unsigned long bytesWritten;
+  unsigned long bytesRead;
+  char buf[1536];
+
+  while ((bytesRead = recv(fd, buf, bytesToWrite, 0))) {
+    WriteFile(fHandle, buf, bytesRead, &bytesWritten, NULL);
+  }
+  CloseHandle(fHandle);
+  return true;
+#else
+  char buf[1024]; // Buffer of garbage
+  int bytesRead = 1024;
+  while(recv(fd, buf, &bytesRead, 0)) {
+  }
   return true;
 #endif
 }
@@ -474,6 +505,16 @@ int ftpServer(void*)
                 outputLine("Trying to send file %s!\n", fileName.c_str());
                 sendStdString(i, "150 Sending file " + fileName + "\r\n");
                 sendFile(TXFDs[i], PWDs[i], fileName);
+                close(TXFDs[i]);
+                freeaddrinfo(TXs[i]);
+                sendStdString(i, replies[10]);
+              }
+            } else if (!cmd.compare("STOR")) {
+              if (TXFDs[i] != -1) {
+                std::string fileName = recvdata.substr(cmdDataSep +1, std::string::npos);
+                outputLine("Trying to receive file %s!\n", fileName.c_str());
+                sendStdString(i, "150 Receiving file " + fileName + "\r\n");
+                recvFile(TXFDs[i], PWDs[i], fileName);
                 close(TXFDs[i]);
                 freeaddrinfo(TXs[i]);
                 sendStdString(i, replies[10]);
