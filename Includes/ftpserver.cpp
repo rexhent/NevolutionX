@@ -188,20 +188,22 @@ bool sendFile(int fd, std::string const& pwd, std::string const& fileName) {
 #ifdef NXDK
   std::string filePath = unixToDosPath(pwd + fileName);
   outputLine(fileName.c_str());
-  WIN32_FIND_DATAA fData;
-  HANDLE fHandle = FindFirstFileA(filePath.c_str(), &fData);
+  HANDLE fHandle = CreateFile(filePath.c_str(), GENERIC_READ, FILE_SHARE_READ,
+                              NULL, OPEN_EXISTING, FILE_ATTRIBUTE_NORMAL, NULL);
   outputLine(("\r\n" + filePath + "\r\n").c_str());
   if (fHandle == INVALID_HANDLE_VALUE) {
+    outputLine("File opening failed. LOL. \n");
     return false;
   }
-  int bytesToRead = 1533;
-  unsigned long bytesRead;
-  char buf[1536];
+  int bytesToRead = 1048573;
+  unsigned long bytesRead = 0;
+  char* buf = static_cast<char*>(malloc(1048576));
 
-  while (ReadFile(fHandle, &buf, bytesToRead, &bytesRead, NULL)) {
+  while (ReadFile(fHandle, buf, bytesToRead, &bytesRead, NULL) && (bytesRead > 0)) {
     send(fd, buf, bytesRead, 0);
   }
   FindClose(fHandle);
+  free(buf);
   return true;
 #else
   char buf[1024]; // Buffer of garbage
@@ -216,21 +218,23 @@ bool recvFile(int fd, std::string const& pwd, std::string const& fileName) {
   std::string filePath = unixToDosPath(pwd + fileName);
   outputLine(fileName.c_str());
   HANDLE fHandle = CreateFile(filePath.c_str(), GENERIC_WRITE,
-                              FILE_SHARE_WRITE, 0, OPEN_EXISTING,
-                              FILE_ATTRIBUTE_NORMAL, 0);
+                              0, NULL, CREATE_NEW,
+                              FILE_ATTRIBUTE_NORMAL, NULL);
   outputLine(("\r\n" + filePath + "\r\n").c_str());
   if (fHandle == INVALID_HANDLE_VALUE) {
+    outputLine("File creation failed. LOL. \n");
     return false;
   }
-  int bytesToWrite = 1533;
+  int bytesToWrite = (64 * 1024) - 3;
   unsigned long bytesWritten;
   unsigned long bytesRead;
-  char buf[1536];
+  char* buf = static_cast<char*>(malloc(64 * 1024));
 
   while ((bytesRead = recv(fd, buf, bytesToWrite, 0))) {
-    WriteFile(fHandle, buf, bytesRead, &bytesWritten, NULL);
+    WriteFile(fHandle, &buf, bytesRead, &bytesWritten, NULL);
   }
   CloseHandle(fHandle);
+  free(buf);
   return true;
 #else
   char buf[1024]; // Buffer of garbage
@@ -348,6 +352,7 @@ int ftpServer(void*)
             } else {
               outputLine("Error: recv\n");
             }
+            outputLine("Closing %d!\n", i);
             close(i); // bye!
             PWDs.erase(i);
             TXs.erase(i);
@@ -370,13 +375,13 @@ int ftpServer(void*)
              * X EPRT - Extended data port (IPv6)
              * X PWD  - print working directory
              *   QUIT - terminate the connection
-             * / RETR - retrieve a remote file (Crashes on PORT?!)
+             * X RETR - retrieve a remote file
              *   RMD  - remove a remote directory
              *   RNFR - rename from
              *   RNTO - rename to
              *   SITE - site-specific commands
              *   SIZE - return the size of a file
-             *   STOR - store a file on the remote host
+             * X STOR - store a file on the remote host
              * X SYST - Identify yourself
              * / TYPE - set transfer type (Only accepts IMAGE)
              * X USER - send username
