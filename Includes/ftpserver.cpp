@@ -202,7 +202,7 @@ bool sendFile(int fd, std::string const& pwd, std::string const& fileName) {
   while (ReadFile(fHandle, buf, bytesToRead, &bytesRead, NULL) && (bytesRead > 0)) {
     send(fd, buf, bytesRead, 0);
   }
-  FindClose(fHandle);
+  CloseHandle(fHandle);
   free(buf);
   return true;
 #else
