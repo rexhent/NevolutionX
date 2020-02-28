@@ -52,7 +52,8 @@ const std::string replies[] = {
   "215 UNIX type: L8\r\n",
   "200 Port command ok.\r\n",
   "150 Opening ASCII data connection for ls\r\n",
-  "226 Data transfer finished successfully. Data connection closed.\r\n"
+  "226 Data transfer finished successfully. Data connection closed.\r\n",
+  "504 Command parameter not implemented.\r\n"
 };
 
 const std::string types[] = {
@@ -410,7 +411,7 @@ int ftpServer(void*)
                 sprintf(buf, replies[5].c_str(), "ASCII");
                 send(i, buf, strlen(buf), 0);
               } else {
-                sendStdString(i, "504 Command parameter not implemented.\r\n");
+                sendStdString(i, replies[11]);
               }
             } else if (!cmd.compare("CWD")) {
               if (recvdata[4] == '.' && recvdata[5] == '.') {
