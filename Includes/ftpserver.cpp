@@ -56,6 +56,22 @@ const std::string replies[] = {
   "504 Command parameter not implemented.\r\n"
 };
 
+const std::string months[] = {
+  "Jan",
+  "Jan",
+  "Feb",
+  "Mar",
+  "Apr",
+  "May",
+  "Jun",
+  "Jul",
+  "Aug",
+  "Sep",
+  "Oct",
+  "Nov",
+  "Dec"
+};
+
 const std::string types[] = {
   "ASCII",
   "EBCDIC",
@@ -169,8 +185,13 @@ void sendFolderContents(int fd, std::string &path) {
     } else {
       retstr = "-";
     }
-    retstr += "rwxr-xr-x 1 XBOX XBOX " + std::to_string(fData.nFileSizeLow) +
-      " May 11 14:40 " + fData.cFileName + "\r\n";
+    TIME_FIELDS fTime;
+    RtlTimeToTimeFields((PLARGE_INTEGER)&fData.ftLastWriteTime, &fTime);
+    retstr += "rwxr-xr-x 1 XBOX XBOX "
+      + std::to_string(fData.nFileSizeLow) +
+      " " + months[fTime.Month] + " " + std::to_string(fTime.Day) + " " +
+      std::to_string(fTime.Hour) + ":" + std::to_string(fTime.Minute) + " " +
+      fData.cFileName + "\r\n";
     sendStdString(fd, retstr);
   } while (FindNextFile(fHandle, &fData) != 0);
   FindClose(fHandle);
@@ -219,7 +240,7 @@ bool recvFile(int fd, std::string const& pwd, std::string const& fileName) {
   std::string filePath = unixToDosPath(pwd + fileName);
   outputLine(fileName.c_str());
   HANDLE fHandle = CreateFile(filePath.c_str(), GENERIC_WRITE,
-                              0, NULL, CREATE_NEW,
+                              0, NULL, CREATE_ALWAYS,
                               FILE_ATTRIBUTE_NORMAL, NULL);
   outputLine(("\r\n" + filePath + "\r\n").c_str());
   if (fHandle == INVALID_HANDLE_VALUE) {
@@ -407,9 +428,6 @@ int ftpServer(void*)
               if (recvdata[5] == 'I') {
                 sprintf(buf, replies[5].c_str(), "IMAGE");
                 send(i, buf, strlen(buf), 0);
-              } else if (recvdata[5] == 'A') {
-                sprintf(buf, replies[5].c_str(), "ASCII");
-                send(i, buf, strlen(buf), 0);
               } else {
                 sendStdString(i, replies[11]);
               }
@@ -421,6 +439,10 @@ int ftpServer(void*)
               } else {
                 PWDs[i] = PWDs[i] + recvdata.substr(4, recvdata.find('\r')-4) + "/";
               }
+              sprintf(buf, replies[6].c_str(), PWDs[i].c_str());
+              sendStdString(i, buf);
+            } else if (!cmd.compare("CDUP")) {
+              PWDs[i] = PWDs[i].substr(0, PWDs[i].rfind('/', PWDs[i].rfind('/')-1)+1);
               sprintf(buf, replies[6].c_str(), PWDs[i].c_str());
               sendStdString(i, buf);
             } else if (!cmd.compare("SYST")) {
