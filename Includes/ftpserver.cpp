@@ -236,35 +236,35 @@ bool sendFile(int fd, std::string const& pwd, std::string const& fileName) {
 }
 
 bool recvFile(int fd, std::string const& pwd, std::string const& fileName) {
-#ifdef NXDK
   std::string filePath = unixToDosPath(pwd + fileName);
   outputLine(fileName.c_str());
+#ifdef NXDK
   HANDLE fHandle = CreateFile(filePath.c_str(), GENERIC_WRITE,
                               0, NULL, CREATE_ALWAYS,
                               FILE_ATTRIBUTE_NORMAL, NULL);
-  outputLine(("\r\n" + filePath + "\r\n").c_str());
   if (fHandle == INVALID_HANDLE_VALUE) {
     outputLine("File creation failed. LOL. \n");
     return false;
   }
+#endif
+  outputLine(("\r\n" + filePath + "\r\n").c_str());
   int bytesToWrite = (64 * 1024) - 3;
   unsigned long bytesWritten;
   unsigned long bytesRead;
   char* buf = static_cast<char*>(malloc(64 * 1024));
 
   while ((bytesRead = recv(fd, buf, bytesToWrite, 0))) {
-    WriteFile(fHandle, &buf, bytesRead, &bytesWritten, NULL);
+#ifdef NXDK
+    WriteFile(fHandle, buf, bytesRead, &bytesWritten, NULL);
+#else
+    outputLine(buf);
+#endif
   }
+#ifdef NXDK
   CloseHandle(fHandle);
+#endif
   free(buf);
   return true;
-#else
-  char buf[1024]; // Buffer of garbage
-  int bytesRead = 1024;
-  while(recv(fd, buf, &bytesRead, 0)) {
-  }
-  return true;
-#endif
 }
 
 int ftpServer(void*)
