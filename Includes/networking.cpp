@@ -10,7 +10,6 @@
 #include "outputLine.h"
 #include "networking.h"
 
-
 extern "C" {
   struct netif nforce_netif, *g_pnetif;
   err_t nforceif_init(struct netif *netif);

@@ -8,6 +8,7 @@
 #include "subsystems.h"
 
 #include "ftpServer.h"
+#include "pvTester.h"
 
 #include <type_traits>
 #include <threads.h>
@@ -73,7 +74,8 @@ int main(void) {
       s->init();
       thrd_t thrF;
       //thrd_create(&thrF, thread_runner, s);
-      thread_runner(s);
+      //thread_runner(s);
+      pvTester(NULL);
     }
 
     // Create render system
