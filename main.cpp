@@ -7,7 +7,7 @@
 #include "renderer.h"
 #include "subsystems.h"
 
-#include "ftpserver.h"
+#include "ftpServer.h"
 
 #include <type_traits>
 #include <threads.h>
@@ -63,8 +63,14 @@ int main(void) {
 
     // Start FTP server
     if (init == 0) {
+#ifdef NXDK
+      ftpServer s(21);
+#else
+      ftpServer s(2121);
+#endif
+      s.init();
       thrd_t thrF;
-      thrd_create(&thrF, ftpServer, NULL);
+      thrd_create(&thrF, thread_runner, &s);
     }
 
     // Create render system
