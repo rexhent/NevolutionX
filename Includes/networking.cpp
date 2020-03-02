@@ -10,7 +10,7 @@
 #include "outputLine.h"
 #include "networking.h"
 
-#define PKT_TMR_INTERVAL 5 /* ms */
+#define PKT_TMR_INTERVAL 1 /* ms */
 
 extern "C" {
   struct netif nforce_netif, *g_pnetif;
