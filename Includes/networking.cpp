@@ -1,4 +1,5 @@
 #include <lwip/dhcp.h>
+#include <lwip/dhcp6.h>
 #include <lwip/init.h>
 #include <lwip/sys.h>
 #include <lwip/tcpip.h>
@@ -34,8 +35,7 @@ static void packet_timer(void *arg)
 
 int setupNetwork(void* DHCP) {
   bool dhcp = *static_cast<bool*>(DHCP);
-  
-  const ip4_addr_t *ip;
+
   static ip4_addr_t ipaddr, netmask, gw;
   sys_sem_t init_complete;
 
@@ -59,11 +59,11 @@ int setupNetwork(void* DHCP) {
   if (!g_pnetif) {
     return 1;
   }
-
   netif_set_default(g_pnetif);
   netif_set_up(g_pnetif);
 
   if (dhcp) {
+    dhcp6_enable_stateless(g_pnetif);
     dhcp_start(g_pnetif);
   }
 
