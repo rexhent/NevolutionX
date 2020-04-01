@@ -10,7 +10,6 @@
 #include "outputLine.h"
 #include "networking.h"
 
-#define PKT_TMR_INTERVAL 1 /* ms */
 
 extern "C" {
   struct netif nforce_netif, *g_pnetif;
@@ -18,19 +17,11 @@ extern "C" {
 }
 
 void http_server_netconn_init(void);
-static void packet_timer(void *arg);
 
 static void tcpip_init_done(void *arg)
 {
   sys_sem_t *init_complete = static_cast<sys_sem_t*>(arg);
   sys_sem_signal(init_complete);
-}
-
-static void packet_timer(void *arg)
-{
-  LWIP_UNUSED_ARG(arg);
-  Pktdrv_ReceivePackets();
-  sys_timeout(PKT_TMR_INTERVAL, packet_timer, NULL);
 }
 
 int setupNetwork(void* DHCP) {
@@ -55,7 +46,7 @@ int setupNetwork(void* DHCP) {
   sys_sem_free(&init_complete);
 
   g_pnetif = netif_add(&nforce_netif, &ipaddr, &netmask, &gw,
-                       NULL, nforceif_init, ethernet_input);
+                       NULL, nforceif_init, tcpip_input);
   if (!g_pnetif) {
     return 1;
   }
@@ -66,8 +57,6 @@ int setupNetwork(void* DHCP) {
     dhcp6_enable_stateless(g_pnetif);
     dhcp_start(g_pnetif);
   }
-
-  packet_timer(NULL);
 
   if (dhcp) {
     while (dhcp_supplied_address(g_pnetif) == 0) {
