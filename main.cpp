@@ -17,6 +17,7 @@
 #include <hal/xbox.h>
 #endif
 
+
 void goToMainMenu(menuItem *mI, Renderer *r, Font &f,
                   size_t &listSize, size_t &currItem, size_t &prevItem, int &mMS) {
   f.setPassive(mI, r);
@@ -71,7 +72,8 @@ int main(void) {
 #endif
       s->init();
       thrd_t thrF;
-      thrd_create(&thrF, thread_runner, s);
+      //thrd_create(&thrF, thread_runner, s);
+      thread_runner(s);
     }
 
     // Create render system

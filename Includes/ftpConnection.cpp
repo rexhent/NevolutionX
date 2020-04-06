@@ -518,7 +518,7 @@ bool ftpConnection::sendFile(std::string const& fileName) {
   return true;
 #endif
 }
-
+#define BUFFERPADDING 1024
 bool ftpConnection::recvFile(std::string const& fileName) {
   std::string filePath = unixToDosPath(fileName);
 #ifdef NXDK
@@ -531,13 +531,38 @@ bool ftpConnection::recvFile(std::string const& fileName) {
   }
 #endif
   outputLine(("\r\n" + filePath + "\r\n").c_str());
-  int bytesToWrite = FTP_BUFFER_SIZE - 3;
-  unsigned long bytesWritten;
-  unsigned long bytesRead;
-
-  while ((bytesRead = recv(dataFd, buf, bytesToWrite, 0))) {
+  size_t bytesToWrite = FTP_BUFFER_SIZE - (2*BUFFERPADDING);
+  DWORD bytesWritten;
+  int bytesRead;
+  memset(buf, 0xAA, sizeof(buf));
+  while ((bytesRead = recv(dataFd, &buf[BUFFERPADDING], bytesToWrite, 0))) {
+    if (bytesRead == -1) {
+      outputLine("Error %d, aborting!\n", errno);
+      break;
+    }
 #ifdef NXDK
-    WriteFile(fHandle, buf, bytesRead, &bytesWritten, NULL);
+    for (size_t i = 0; i < BUFFERPADDING; ++i) {
+      if (buf[i] != (char)0xAA) {
+        outputLine("VALUE NOT '0xAA': %d, index: %d, bytesRead: %d\n", buf[i], i, bytesRead);
+      }
+    }
+    for (int i = 0; i < bytesRead; ++i) {
+      if (buf[BUFFERPADDING + i] != 'a') {
+        outputLine("VALUE NOT 'a': %d, index: %d, bytesRead: %d\n", buf[BUFFERPADDING + i], i, bytesRead);
+      }
+    }
+    for (size_t i = BUFFERPADDING + bytesRead; i < sizeof(buf); ++i) {
+      if (buf[i] != (char)0xAA) {
+        outputLine("VALUE NOT '0xAA': %d, index: %d, bytesRead: %d\n", buf[i], i, bytesRead);
+      }
+    }
+    
+    WriteFile(fHandle, &buf[BUFFERPADDING], bytesRead, &bytesWritten, NULL);
+    if (bytesWritten != bytesRead) {
+      outputLine("ERROR: Bytes read != Bytes written (%d, %d)\n", bytesRead, bytesWritten);
+    }
+    
+    memset(&buf[BUFFERPADDING], 0xAA, bytesToWrite);
 #else
     outputLine(buf);
 #endif
