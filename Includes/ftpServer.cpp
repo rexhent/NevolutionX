@@ -173,14 +173,16 @@ int ftpServer::run(void*)
             clients[newfd] = new ftpConnection(newfd, this);
           }
         } else {
-          clients[i]->doYourThing();
+          if (!clients[i]->update()) {
+            forgetConnection(i);
+          }
         }
       }
     }
   }
 }
 
-void ftpServer::forgetMe(int fd) {
+void ftpServer::forgetConnection(int fd) {
   delete(clients[fd]);
   clients.erase(fd);
   FD_CLR(fd, &master);
