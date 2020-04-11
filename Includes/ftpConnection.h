@@ -4,8 +4,6 @@
 #include <string>
 #include "ftpServer.h"
 
-#define FTP_BUFFER_SIZE (64 * 1024)
-
 class ftpServer;
 
 class ftpConnection {
@@ -13,7 +11,7 @@ class ftpConnection {
   int dataFd;
   std::string pwd;
   bool logged_in;
-  char buf[FTP_BUFFER_SIZE];
+  char* buf;
   char mode;
   std::string rnfr;
 
@@ -57,8 +55,8 @@ class ftpConnection {
   
 public:
   ftpConnection(int fd, ftpServer* s);
-  void doYourThing(void);
-  void killConnection(void);
+  ~ftpConnection();
+  bool update(void);
 };
 
 #endif

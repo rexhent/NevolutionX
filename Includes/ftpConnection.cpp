@@ -38,6 +38,7 @@
 bool nxIsDriveMounted(char) { return true; }
 #endif
 
+#define FTP_BUFFER_SIZE (1024)
 
 const std::string username = "xbox";
 const std::string passwd = "xbox";
@@ -78,24 +79,29 @@ void ftpConnection::sendStdString(int fd, std::string const& s, int flags = 0) {
 
 ftpConnection::ftpConnection(int fd, ftpServer* s) :
   _fd(fd), server(s) {
+  buf = (char*)malloc(FTP_BUFFER_SIZE+1);
   pwd = "/";
   logged_in = false;
   sendStdString(replies[0]);
   mode = 'I';
 }
 
-void ftpConnection::doYourThing(void) {
+ftpConnection::~ftpConnection() {
+  free(buf);
+}
+
+bool ftpConnection::update(void) {
   // handle data from a client
   int nbytes;
-  memset(buf, '\0', sizeof buf);
-  if ((nbytes = recv(_fd, buf, sizeof buf, 0)) <= 0) {
+  memset(buf, '\0', FTP_BUFFER_SIZE);
+  if ((nbytes = recv(_fd, buf, FTP_BUFFER_SIZE, 0)) <= 0) {
     // got error or connection closed by client
     if (nbytes == 0) {
       // connection closed
     } else {
       outputLine("Error: recv\n");
     }
-    server->forgetMe(_fd);
+    return false;
   } else {
     // We received a command!
     /* Do what the command asks of you: */
@@ -193,6 +199,7 @@ void ftpConnection::doYourThing(void) {
       cmdUnimplemented(cmd);
     }
   }
+  return true;
 }
 
 void ftpConnection::cmdUser(std::string const& arg) {
@@ -518,8 +525,9 @@ bool ftpConnection::sendFile(std::string const& fileName) {
   return true;
 #endif
 }
-#define BUFFERPADDING 1024
+
 bool ftpConnection::recvFile(std::string const& fileName) {
+  bool retVal = true;
   std::string filePath = unixToDosPath(fileName);
 #ifdef NXDK
   HANDLE fHandle = CreateFile(filePath.c_str(), GENERIC_WRITE,
@@ -530,45 +538,33 @@ bool ftpConnection::recvFile(std::string const& fileName) {
     return false;
   }
 #endif
+  unsigned char* recvBuffer = (unsigned char*)malloc(64*FTP_BUFFER_SIZE);
+  if (!recvBuffer) {
+    outputLine("Could not create buffer for file receiving! \n");
+    return false;
+  }
   outputLine(("\r\n" + filePath + "\r\n").c_str());
-  size_t bytesToWrite = FTP_BUFFER_SIZE - (2*BUFFERPADDING);
   DWORD bytesWritten;
-  int bytesRead;
-  memset(buf, 0xAA, sizeof(buf));
-  while ((bytesRead = recv(dataFd, &buf[BUFFERPADDING], bytesToWrite, 0))) {
+  ssize_t bytesRead;
+  while ((bytesRead = recv(dataFd, recvBuffer, 64*FTP_BUFFER_SIZE, 0))) {
     if (bytesRead == -1) {
       outputLine("Error %d, aborting!\n", errno);
+      retVal = false;
       break;
     }
 #ifdef NXDK
-    for (size_t i = 0; i < BUFFERPADDING; ++i) {
-      if (buf[i] != (char)0xAA) {
-        outputLine("VALUE NOT '0xAA': %d, index: %d, bytesRead: %d\n", buf[i], i, bytesRead);
-      }
-    }
-    for (int i = 0; i < bytesRead; ++i) {
-      if (buf[BUFFERPADDING + i] != 'a') {
-        outputLine("VALUE NOT 'a': %d, index: %d, bytesRead: %d\n", buf[BUFFERPADDING + i], i, bytesRead);
-      }
-    }
-    for (size_t i = BUFFERPADDING + bytesRead; i < sizeof(buf); ++i) {
-      if (buf[i] != (char)0xAA) {
-        outputLine("VALUE NOT '0xAA': %d, index: %d, bytesRead: %d\n", buf[i], i, bytesRead);
-      }
-    }
-    
-    WriteFile(fHandle, &buf[BUFFERPADDING], bytesRead, &bytesWritten, NULL);
+    WriteFile(fHandle, recvBuffer, bytesRead, &bytesWritten, NULL);
     if (bytesWritten != bytesRead) {
       outputLine("ERROR: Bytes read != Bytes written (%d, %d)\n", bytesRead, bytesWritten);
+      retVal = false;
     }
-    
-    memset(&buf[BUFFERPADDING], 0xAA, bytesToWrite);
 #else
-    outputLine(buf);
+    outputLine(recvBuffer);
 #endif
   }
 #ifdef NXDK
   CloseHandle(fHandle);
 #endif
-  return true;
+  free(recvBuffer);
+  return retVal;
 }
