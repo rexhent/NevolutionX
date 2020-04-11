@@ -15,8 +15,6 @@ extern "C" {
   err_t nforceif_init(struct netif *netif);
 }
 
-void http_server_netconn_init(void);
-
 static void tcpip_init_done(void *arg)
 {
   sys_sem_t *init_complete = static_cast<sys_sem_t*>(arg);
