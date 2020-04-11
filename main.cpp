@@ -74,8 +74,8 @@ int main(void) {
       s->init();
       thrd_t thrF;
       //thrd_create(&thrF, thread_runner, s);
-      //thread_runner(s);
-      pvTester(NULL);
+      thread_runner(s);
+      //pvTester(NULL);
     }
 
     // Create render system
