@@ -23,9 +23,22 @@ add_executable(${PROJECT_NAME}
   Includes/ftpConnection.cpp
   )
 
+add_executable(NevoX_FTP
+  ftpMain.cpp
+  Includes/outputLine.cpp
+  Includes/subsystems.cpp
+  Includes/ftpServer.cpp
+  Includes/ftpConnection.cpp
+  )
+
 set_property(TARGET ${PROJECT_NAME} PROPERTY CXX_STANDARD 14)
 
 target_link_libraries(${PROJECT_NAME}
+  ${SDL2_LIBRARIES}
+  ${CMAKE_THREAD_LIBS_INIT}
+  ${SDL2TTF_LIBRARIES})
+
+target_link_libraries(NevoX_FTP
   ${SDL2_LIBRARIES}
   ${CMAKE_THREAD_LIBS_INIT}
   ${SDL2TTF_LIBRARIES})
@@ -34,4 +47,5 @@ if(MSVC)
   target_compile_options(${PROJECT_NAME} PRIVATE /W4 /WX)
 else()
   target_compile_options(${PROJECT_NAME} PRIVATE -Wall -Wextra -pedantic)
+  target_compile_options(NevoX_FTP PRIVATE -Wall -Wextra -pedantic)
 endif()
