@@ -98,7 +98,7 @@ ftpServer::ftpServer(int port) :
   FD_ZERO(&master);    // clear the master and temp sets
   FD_ZERO(&readFds);
 
-  // get us a socket and bind it
+  // Set hints for our future socket(s)
   memset(&hints, 0, sizeof hints);
   hints.ai_family = AF_UNSPEC;
   hints.ai_socktype = SOCK_STREAM;
@@ -145,7 +145,7 @@ int ftpServer::init(void) {
   return 0;
 }
 
-int ftpServer::run(void*)
+int ftpServer::run()
 {
   /* `select` a file descriptor */
   for (;;) {
@@ -217,5 +217,5 @@ int ftpServer::openConnection(std::string const& addr, std::string const& port) 
 
 int thread_runner(void* server) {
   ftpServer* s = static_cast<ftpServer*>(server);
-  return s->run(NULL);
+  return s->run();
 }
