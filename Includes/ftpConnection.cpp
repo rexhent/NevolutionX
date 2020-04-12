@@ -89,6 +89,7 @@ ftpConnection::ftpConnection(int fd, ftpServer* s) :
 
 ftpConnection::~ftpConnection() {
   free(buf);
+  server = nullptr;
 }
 
 bool ftpConnection::update(void) {

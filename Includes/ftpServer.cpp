@@ -92,7 +92,6 @@ std::string sock_strerror(int errc) {
   }
 }
 
-
 ftpServer::ftpServer(int port) :
   _port(port) {
   FD_ZERO(&master);    // clear the master and temp sets
@@ -200,18 +199,17 @@ int ftpServer::openConnection(std::string const& addr, std::string const& port) 
       if (connect(ret, ai->ai_addr, ai->ai_addrlen) != 0)
       {
         outputLine("Connecting socket %d failed; %s\n", ret, sock_strerror(errno).c_str());
-        freeaddrinfo(ai);
         close(ret);
         ret = -1;
       }
     } else {
       outputLine("Socket creation failed; %s\n", sock_strerror(errno).c_str());
-      freeaddrinfo(ai);
     }
   } else {
     outputLine("Getting address info failed; %s\n", gai_strerror(rv));
     ret = -1;
   }
+  freeaddrinfo(ai);
   return ret;
 }
 
