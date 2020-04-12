@@ -38,7 +38,8 @@
 bool nxIsDriveMounted(char) { return true; }
 #endif
 
-#define FTP_BUFFER_SIZE (1024)
+#define FTP_CMD_BUFFER_SIZE (1024)
+#define FTP_DATA_BUFFER_SIZE (64 * 1024)
 
 const std::string username = "xbox";
 const std::string passwd = "xbox";
@@ -79,7 +80,7 @@ void ftpConnection::sendStdString(int fd, std::string const& s, int flags = 0) {
 
 ftpConnection::ftpConnection(int fd, ftpServer* s) :
   _fd(fd), server(s) {
-  buf = (char*)malloc(FTP_BUFFER_SIZE+1);
+  buf = (char*)malloc(FTP_CMD_BUFFER_SIZE);
   pwd = "/";
   logged_in = false;
   sendStdString(replies[0]);
@@ -93,19 +94,25 @@ ftpConnection::~ftpConnection() {
 bool ftpConnection::update(void) {
   // handle data from a client
   int nbytes;
-  memset(buf, '\0', FTP_BUFFER_SIZE);
-  if ((nbytes = recv(_fd, buf, FTP_BUFFER_SIZE, 0)) <= 0) {
+  //memset(buf, '\0', FTP_BUFFER_SIZE);
+  if ((nbytes = recv(_fd, buf, FTP_CMD_BUFFER_SIZE, 0)) <= 0) {
     // got error or connection closed by client
     if (nbytes == 0) {
       // connection closed
     } else {
       outputLine("Error: recv\n");
     }
+    /* Report back to server that we're a dud! */
     return false;
   } else {
     // We received a command!
-    /* Do what the command asks of you: */
-    /**
+
+    /* Add a terminating zero to the received string as the
+     * client does not necessarily do so. */
+    buf[nbytes] = '\0';
+
+    /* Do what the command asks of you:
+     *
      *   ABOR - abort a file transfer
      * / CWD  - change working directory (Lacks sanity check)
      * X CDUP - Move up to parent directory
@@ -199,6 +206,7 @@ bool ftpConnection::update(void) {
       cmdUnimplemented(cmd);
     }
   }
+  /* Tell the server that we're still alive and kicking! */
   return true;
 }
 
@@ -502,7 +510,7 @@ bool ftpConnection::sendFile(std::string const& fileName) {
     outputLine("File opening failed. LOL.\n");
     return false;
   }
-  int bytesToRead = FTP_BUFFER_SIZE - 3;
+  int bytesToRead = FTP_DATA_BUFFER_SIZE - 3;
   unsigned long bytesRead = 0;
   if (mode == 'I') {
     while (ReadFile(fHandle, buf, bytesToRead, &bytesRead, NULL) && (bytesRead > 0)) {
@@ -538,19 +546,24 @@ bool ftpConnection::recvFile(std::string const& fileName) {
     return false;
   }
 #endif
-  unsigned char* recvBuffer = (unsigned char*)malloc(64*FTP_BUFFER_SIZE);
+  unsigned char* recvBuffer = (unsigned char*)malloc(FTP_DATA_BUFFER_SIZE);
   if (!recvBuffer) {
     outputLine("Could not create buffer for file receiving! \n");
     return false;
   }
   outputLine(("\r\n" + filePath + "\r\n").c_str());
-  DWORD bytesWritten;
+  unsigned long bytesWritten;
   ssize_t bytesRead;
-  while ((bytesRead = recv(dataFd, recvBuffer, 64*FTP_BUFFER_SIZE, 0))) {
+  while ((bytesRead = recv(dataFd, recvBuffer, FTP_DATA_BUFFER_SIZE, 0))) {
     if (bytesRead == -1) {
       outputLine("Error %d, aborting!\n", errno);
       retVal = false;
       break;
+    }
+    for (ssize_t i = 0; i < bytesRead; ++i) {
+      if (recvBuffer[i] != 'a') {
+        outputLine("Garbage data received! Expected %d, received %d.\n", 'a', recvBuffer[i]);
+      }
     }
 #ifdef NXDK
     WriteFile(fHandle, recvBuffer, bytesRead, &bytesWritten, NULL);
@@ -558,8 +571,6 @@ bool ftpConnection::recvFile(std::string const& fileName) {
       outputLine("ERROR: Bytes read != Bytes written (%d, %d)\n", bytesRead, bytesWritten);
       retVal = false;
     }
-#else
-    outputLine(recvBuffer);
 #endif
   }
 #ifdef NXDK
