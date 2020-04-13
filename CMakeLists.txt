@@ -26,7 +26,6 @@ add_executable(${PROJECT_NAME}
 add_executable(NevoX_FTP
   ftpMain.cpp
   Includes/outputLine.cpp
-  Includes/subsystems.cpp
   Includes/ftpServer.cpp
   Includes/ftpConnection.cpp
   )
