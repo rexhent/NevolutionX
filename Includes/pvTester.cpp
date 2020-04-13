@@ -1,8 +1,17 @@
 #include "pvTester.h"
 
+#ifdef NXDK
 #include <lwip/netdb.h>
 #include <lwip/sockets.h>
+#else
+#include <sys/socket.h>
+#include <arpa/inet.h>
+#include <netdb.h>
+#include <unistd.h>
+#include <netinet/in.h>
+#endif
 #include <string.h>
+#include "outputLine.h"
 
 int pvTester(void*) {
   int listenfd = 0, connfd = 0;
@@ -26,19 +35,18 @@ int pvTester(void*) {
   {
     size_t n, bytes_recvd = 0;
     connfd = accept(listenfd, (struct sockaddr*)NULL, NULL); 
-    printf("New connection\n");
-    while ((n = read(connfd, buf, sizeof(buf)-1)) > 0) {
+    outputLine("New connection\n");
+    while ((n = recv(connfd, buf, sizeof(buf)-1, 0)) > 0) {
       for (size_t i = 0; i < n - 1; ++i) {
         if (((buf[i] != (buf[i+1] - 1)) &&
              buf[i] != 255) ||
             (buf[i] == 255 && buf[i+1] != 0)) {
-          printf("Bad value %d, index %d, other value %d\n", buf[i], i, buf[i+1]);
+          outputLine("Bad value %d, index %d, other value %d\n", buf[i], i, buf[i+1]);
         }
       }
       bytes_recvd += n;
     }
-    printf("Recv'd %d MiB\n", bytes_recvd/(1024*1024));
+    outputLine("Recv'd %d MiB\n", bytes_recvd/(1024*1024));
     close(connfd);
-    Sleep(1);
   }
 }
