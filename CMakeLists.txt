@@ -19,6 +19,7 @@ add_executable(${PROJECT_NAME}
   Includes/font.cpp
   Includes/ftpServer.cpp
   Includes/ftpConnection.cpp
+  Includes/sntpClient.cpp
   Includes/config.cpp
   Includes/menu.cpp
   Includes/langMenu.cpp
