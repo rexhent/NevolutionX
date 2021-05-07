@@ -6,16 +6,23 @@
 
 class gameSaveData : public MenuItem {
   size_t size;
-  // xbx_texture icon;
+  const std::string path;
+  // xbx_texture *icon;
 public:
-  gameSaveData(std::string const& path);
-  const std::string_view getLabel();
-}
+  gameSaveData(std::string const& label, std::string const& path);
+  // std::string_view getLabel() const;
+  void execute(Menu *);
+};
 
 class gameSave : public MenuNode {
-  // xbx_texture icon;
+  // xbx_texture *icon;
 public:
-  gameSave(std::string const& path);
+  gameSave(MenuNode *parent, std::string const& label, std::string const& path);
+};
+
+class gameSaveMenu : public MenuNode {
+public:
+  gameSaveMenu(MenuNode *parent, std::string const& label);
 };
 
 #endif
