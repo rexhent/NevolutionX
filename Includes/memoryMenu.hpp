@@ -9,7 +9,7 @@ class gameSaveData : public MenuItem {
   const std::string path;
   // xbx_texture *icon;
 public:
-  gameSaveData(std::string const& label, std::string const& path);
+  gameSaveData(MenuNode *parent, std::string const& label, std::string const& path);
   // std::string_view getLabel() const;
   void execute(Menu *);
 };
