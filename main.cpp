@@ -26,6 +26,13 @@
 #ifdef NXDK
 #define SEPARATOR "\\"
 #define HOME "A:" SEPARATOR
+
+typedef struct launchdata1 {
+  uint32_t reason;
+  uint32_t context;
+  uint32_t parameters[2];
+  uint8_t padding[3056];
+} launchdata1;
 #else
 #define SEPARATOR "/"
 #define HOME "." SEPARATOR
@@ -34,6 +41,8 @@
 int main(void) {
 #ifdef NXDK
   mountHomeDir('A');
+  if (LaunchDataPage == NULL)
+    LaunchDataPage = (PLAUNCH_DATA_PAGE)MmAllocateContiguousMemory(0x1000);
 #endif
   Config config;
   std::map<int, SDL_GameController*> controllers;
@@ -84,21 +93,27 @@ int main(void) {
     SDL_Event event;
 
 #ifdef NXDK
-    ULONG ValueIndex = 0x1;
-    uint32_t Value = getEEPROMValue<uint32_t>(ValueIndex);
-    if (Value == 0) {
+    if (LaunchDataPage->Header.dwLaunchDataType == 1) {
+      launchdata1* ld1 = (launchdata1*)(LaunchDataPage->LaunchData);
+      if (ld1->reason == 3)
+      {
+        if (ld1->parameters[0] & 0x2) {
+          
 #endif
-      timeZone = std::make_shared<TimeMenu>(menu.getCurrentMenu(), "Timezone select");
-      menu.setCurrentMenu(timeZone.get());
+          timeZone = std::make_shared<TimeMenu>(menu.getCurrentMenu(), "Timezone select");
+          menu.setCurrentMenu(timeZone.get());
 #ifdef NXDK
+        }
+        if (ld1->parameters[0] & 0x4) {
+#endif
+          lang = std::make_shared<LangMenu>(menu.getCurrentMenu(), "Language select");
+          menu.setCurrentMenu(lang.get());
+#ifdef NXDK
+        }
+      }
     }
-    ValueIndex = 0x7;
-    Value = getEEPROMValue<uint32_t>(ValueIndex);
-    if (Value == 0) {
-#endif
-      lang = std::make_shared<LangMenu>(menu.getCurrentMenu(), "Language select");
-      menu.setCurrentMenu(lang.get());
-#ifdef NXDK
+    else {
+      menu.getCurrentMenu()->addNode(std::make_shared<MenuLaunch>(std::to_string(LaunchDataPage->Header.dwLaunchDataType), "asd"));
     }
 #endif
 
