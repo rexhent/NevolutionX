@@ -112,6 +112,13 @@ int main(void) {
         }
       }
     }
+    else if (LaunchDataPage->Header.dwLaunchDataType == 0x0FFF0FFF) {
+      launchdata1* ld1 = (launchdata1*)(LaunchDataPage->LaunchData);
+      menu.getCurrentMenu()->addNode(std::make_shared<MenuLaunch>(std::to_string(ld1->reason), "asd"));
+      menu.getCurrentMenu()->addNode(std::make_shared<MenuLaunch>(std::to_string(ld1->context), "asd"));
+      menu.getCurrentMenu()->addNode(std::make_shared<MenuLaunch>(std::to_string(ld1->parameters[0]), "asd"));
+      menu.getCurrentMenu()->addNode(std::make_shared<MenuLaunch>(std::to_string(ld1->parameters[1]), "asd"));
+    }      
     else {
       menu.getCurrentMenu()->addNode(std::make_shared<MenuLaunch>(std::to_string(LaunchDataPage->Header.dwLaunchDataType), "asd"));
     }
