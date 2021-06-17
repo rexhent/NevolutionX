@@ -5,6 +5,7 @@
 #include "outputLine.h"
 #include "findXBE.h"
 #include "settingsMenu.hpp"
+#include "subsystems.h"
 #ifdef NXDK
 #include <hal/xbox.h>
 #endif
@@ -182,7 +183,8 @@ Menu::Menu(const Config &config, Renderer &renderer) : renderer(renderer), rootN
       this->rootNode.addNode(newNode);
     }
     else if (!static_cast<std::string>(e["type"]).compare("reboot")) {
-      std::shared_ptr<MenuExec> newNode = std::make_shared<MenuExec>(e["label"], [](Menu *){exit(0);});
+      std::shared_ptr<MenuExec> newNode =
+        std::make_shared<MenuExec>(e["label"], [](Menu *){shutdown_systems(0);});
       this->rootNode.addNode(newNode);
     }
     else if (!static_cast<std::string>(e["type"]).compare("settings")) {
