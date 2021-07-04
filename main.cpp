@@ -95,10 +95,39 @@ int main(void) {
 #ifdef NXDK
     if (LaunchDataPage->Header.dwLaunchDataType == 1) {
       launchdata1* ld1 = (launchdata1*)(LaunchDataPage->LaunchData);
-      if (ld1->reason == 3)
-      {
+      switch (ld1->reason) {
+      case 1:
+        switch (ld1->parameters[0]) {
+        case 1:
+          /* Output warning regarding bad XBE */
+          break;
+        case 2:
+          /* Invalid Harddrive - does this ever happen? */
+          break;
+        case 3:
+          /* Output warning regarding invalid region */
+          break;
+        case 4:
+          /* Output parental control warning */
+          break;
+        case 5:
+          /* Bad media type - more information in parameters[1] */
+          break;
+        default:
+          /* We shouldn't ever end up here. */
+          break;
+        }
+        break;
+      case 2:
+        /* Savedata stuff */
+        break;
+      case 3:
+        /* Invalid settings */
+        // if (ld1->parameters[0] & 0x1) {
+          /* Clock not set */
+        // }
         if (ld1->parameters[0] & 0x2) {
-          
+
 #endif
           timeZone = std::make_shared<TimeMenu>(menu.getCurrentMenu(), "Timezone select");
           menu.setCurrentMenu(timeZone.get());
@@ -110,15 +139,16 @@ int main(void) {
           menu.setCurrentMenu(lang.get());
 #ifdef NXDK
         }
+        break;
+      case 4:
+        break;
+      default:
+        break;
       }
     }
     else if (LaunchDataPage->Header.dwLaunchDataType == 0x0FFF0FFF) {
-      launchdata1* ld1 = (launchdata1*)(LaunchDataPage->LaunchData);
-      menu.getCurrentMenu()->addNode(std::make_shared<MenuLaunch>("rsn " + std::to_string(ld1->reason), "asd"));
-      menu.getCurrentMenu()->addNode(std::make_shared<MenuLaunch>("ctx " + std::to_string(ld1->context), "asd"));
-      menu.getCurrentMenu()->addNode(std::make_shared<MenuLaunch>("pr1 " + std::to_string(ld1->parameters[0]), "asd"));
-      menu.getCurrentMenu()->addNode(std::make_shared<MenuLaunch>("pr2 " + std::to_string(ld1->parameters[1]), "asd"));
-    }      
+      menu.getCurrentMenu()->addNode(std::make_shared<MenuLaunch>("Bad custom BIOS?", "asd"));
+    }
     else {
       menu.getCurrentMenu()->addNode(std::make_shared<MenuLaunch>(std::to_string(LaunchDataPage->Header.dwLaunchDataType), "asd"));
     }
