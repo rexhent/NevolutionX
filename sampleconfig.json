@@ -41,6 +41,10 @@
             "type": "reboot"
         },
         {
+            "label": "Install",
+            "type": "install"
+        },
+        {
             "label": "Some stupid submenu",
             "type": "submenu"
         }

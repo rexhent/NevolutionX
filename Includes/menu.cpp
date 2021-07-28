@@ -4,6 +4,7 @@
 
 #include "outputLine.h"
 #include "findXBE.h"
+#include "installMenu.hpp"
 #include "settingsMenu.hpp"
 #ifdef NXDK
 #include <hal/xbox.h>
@@ -187,6 +188,10 @@ Menu::Menu(const Config &config, Renderer &renderer) : renderer(renderer), rootN
     }
     else if (!static_cast<std::string>(e["type"]).compare("settings")) {
       std::shared_ptr<MenuNode> newNode = std::make_shared<settingsMenu>(currentMenu, e["label"]);
+      this->rootNode.addNode(newNode);
+    }
+    else if (!static_cast<std::string>(e["type"]).compare("install")) {
+      std::shared_ptr<installMenu> newNode = std::make_shared<installMenu>(currentMenu, e["label"]);
       this->rootNode.addNode(newNode);
     }
   }
