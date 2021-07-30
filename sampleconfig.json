@@ -37,12 +37,13 @@
             "type": "settings"
         },
         {
-            "label": "Reboot",
-            "type": "reboot"
+            "label": "Install",
+            "type": "install",
+            "path": "This shouldn't have to be here!"
         },
         {
-            "label": "Install",
-            "type": "install"
+            "label": "Reboot",
+            "type": "reboot"
         },
         {
             "label": "Some stupid submenu",
