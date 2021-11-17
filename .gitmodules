@@ -4,3 +4,6 @@
 [submodule "3rdparty/NaturalSort"]
 	path = 3rdparty/NaturalSort
 	url = https://github.com/scopeInfinity/NaturalSort.git
+[submodule "xgu"]
+	path = 3rdparty/XGU
+	url = https://github.com/dracc/xgu
