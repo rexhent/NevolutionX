@@ -1,6 +1,6 @@
-#include "sntpClient.h"
+#include "sntpClient.hpp"
+#include "infoLog.hpp"
 #include <utility>
-#include "infoLog.h"
 
 // clang-format off
 #ifdef NXDK

@@ -1,7 +1,7 @@
-#include "subAppRouter.h"
+#include "subAppRouter.hpp"
+#include "infoLog.hpp"
 #include <list>
 #include <memory>
-#include "infoLog.h"
 
 #define ANALOG_MAX_VALUE 32767.0f
 
